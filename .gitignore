@@ -1,0 +1,15 @@
+# Ignorar el entorno virtual (es muy pesado)
+venv/
+
+# Ignorar archivos temporales de Python
+__pycache__/
+
+# Ignorar programas pesados y locales
+ffmpeg.exe
+
+# Ignorar archivos multimedia pesados (dejamos la base de datos .db para tener datos que mostrar)
+*.mp4
+*.wav
+
+# Ignorar datos sensibles
+cookies.txt

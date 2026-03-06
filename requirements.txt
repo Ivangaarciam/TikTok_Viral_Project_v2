@@ -1,0 +1,13 @@
+opencv-python-headless
+numpy
+pandas
+moviepy
+SpeechRecognition
+yt_dlp
+scikit-learn
+matplotlib
+seaborn
+openai-whisper
+streamlit
+plotly
+joblib
