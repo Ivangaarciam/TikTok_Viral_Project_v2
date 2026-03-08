@@ -103,6 +103,10 @@ st.divider()
 # --- SECCIÓN PRINCIPAL: TABS DE DATOS Y GRÁFICOS ---
 if not os.path.exists(config.ARCHIVO_DB):
     st.info("La base de datos se creará en cuanto analices tu primer video.")
+    # --- NUEVO: CHIVATO DE ACTUALIZACIÓN ---
+            from datetime import datetime
+            fecha_mod = datetime.fromtimestamp(os.path.getmtime(config.ARCHIVO_DB))
+            st.caption(f"Última sincronización de datos: {fecha_mod.strftime('%d/%m/%Y %H:%M')}")
 else:
     try:
         conn = sqlite3.connect(config.ARCHIVO_DB)
