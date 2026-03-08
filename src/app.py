@@ -103,10 +103,6 @@ st.divider()
 # --- SECCIÓN PRINCIPAL: TABS DE DATOS Y GRÁFICOS ---
 if not os.path.exists(config.ARCHIVO_DB):
     st.info("La base de datos se creará en cuanto analices tu primer video.")
-    # --- NUEVO: CHIVATO DE ACTUALIZACIÓN ---
-            from datetime import datetime
-            fecha_mod = datetime.fromtimestamp(os.path.getmtime(config.ARCHIVO_DB))
-            st.caption(f"Última sincronización de datos: {fecha_mod.strftime('%d/%m/%Y %H:%M')}")
 else:
     try:
         conn = sqlite3.connect(config.ARCHIVO_DB)
@@ -115,6 +111,12 @@ else:
 
         if not df.empty:
             st.subheader("📊 Resumen del Cerebro")
+            
+            # --- NUEVO: CHIVATO DE ACTUALIZACIÓN ---
+            from datetime import datetime
+            fecha_mod = datetime.fromtimestamp(os.path.getmtime(config.ARCHIVO_DB))
+            st.caption(f"Última sincronización de datos: {fecha_mod.strftime('%d/%m/%Y %H:%M')}")
+
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Videos Analizados", len(df))
             col2.metric("Ritmo Promedio", f"{df['wpm'].mean():.0f} WPM")
@@ -138,9 +140,7 @@ else:
             tab_datos, tab_graficos = st.tabs(["🗂️ Base de Datos", "📈 Análisis Visual"])
 
             with tab_datos:
-                # Añadimos la columna sentimiento a la vista
                 columnas_mostrar = ['autor', 'vistas', 'likes', 'wpm', 'cortes_min', 'pct_caras', 'sentimiento', 'gancho']
-                # Filtramos para asegurarnos de que solo mostramos columnas que realmente existan en la BD actual
                 columnas_reales = [c for c in columnas_mostrar if c in df.columns]
                 
                 df_mostrar = df[columnas_reales].copy()
