@@ -9,5 +9,6 @@ matplotlib
 seaborn
 openai-whisper
 streamlit
+altair<5
 plotly
 joblib
