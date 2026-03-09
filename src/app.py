@@ -112,9 +112,12 @@ else:
         if not df.empty:
             st.subheader("📊 Resumen del Cerebro")
             
-            # --- NUEVO: CHIVATO DE ACTUALIZACIÓN ---
+            # --- NUEVO: CHIVATO DE ACTUALIZACIÓN CON ZONA HORARIA ---
             from datetime import datetime
-            fecha_mod = datetime.fromtimestamp(os.path.getmtime(config.ARCHIVO_DB))
+            from zoneinfo import ZoneInfo
+            
+            timestamp = os.path.getmtime(config.ARCHIVO_DB)
+            fecha_mod = datetime.fromtimestamp(timestamp, tz=ZoneInfo("Europe/Madrid"))
             st.caption(f"Última sincronización de datos: {fecha_mod.strftime('%d/%m/%Y %H:%M')}")
 
             col1, col2, col3, col4 = st.columns(4)
