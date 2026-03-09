@@ -9,7 +9,7 @@ import processor
 import analyzer     
 import datamanager  
 import nlp
-import scoring  # <--- NUEVO FICHAJE          # <--- AQUÍ ESTÁ EL ARREGLO
+import scoring
 import benchmarking
 import predictor
 
@@ -36,19 +36,21 @@ def procesar_video(url):
     datos_audio = processor.transcribir_audio()
     if not datos_audio: return
 
+    # --- LA ACTUALIZACIÓN CLAVE: Ahora main.py también extrae emociones ---
     palabras_clave = nlp.extraer_palabras_clave(datos_audio['texto'])
+    sentimiento = nlp.analizar_sentimiento(datos_audio['texto'])
 
     datos_tecnicos = analyzer.calcular_metricas(config.NOMBRE_VIDEO_FINAL, config.NOMBRE_AUDIO_FINAL)
     if not datos_tecnicos: return
 
-    datamanager.guardar_datos(url, datos_tecnicos, datos_audio, palabras_clave, stats_sociales)
-    # CAMBIO AQUÍ: Calculamos y mostramos la nota final en la consola
-    scoring.calcular_score_viral(datos_tecnicos, datos_audio, stats_sociales)
-
-    benchmarking.comparar_con_virales(datos_tecnicos, datos_audio)
-
-    predictor.predecir_viralidad(datos_tecnicos, datos_audio)
+    # Pasamos el sentimiento al datamanager para que no explote
+    guardado_exitoso = datamanager.guardar_datos(url, datos_tecnicos, datos_audio, palabras_clave, sentimiento, stats_sociales)
     
+    if guardado_exitoso:
+        scoring.calcular_score_viral(datos_tecnicos, datos_audio, stats_sociales)
+        benchmarking.comparar_con_virales(datos_tecnicos, datos_audio)
+        predictor.predecir_viralidad(datos_tecnicos, datos_audio)
+
 def main():
     if not os.path.exists(config.FFMPEG_PATH):
         print(f"⛔ ERROR: No encuentro ffmpeg.exe en: {config.FFMPEG_PATH}")
