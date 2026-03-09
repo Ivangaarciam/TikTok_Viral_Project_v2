@@ -36,14 +36,13 @@ def procesar_video(url):
     datos_audio = processor.transcribir_audio()
     if not datos_audio: return
 
-    # --- LA ACTUALIZACIÓN CLAVE: Ahora main.py también extrae emociones ---
     palabras_clave = nlp.extraer_palabras_clave(datos_audio['texto'])
     sentimiento = nlp.analizar_sentimiento(datos_audio['texto'])
 
     datos_tecnicos = analyzer.calcular_metricas(config.NOMBRE_VIDEO_FINAL, config.NOMBRE_AUDIO_FINAL)
     if not datos_tecnicos: return
 
-    # Pasamos el sentimiento al datamanager para que no explote
+    # Guardamos todos los datos (incluyendo el sentimiento)
     guardado_exitoso = datamanager.guardar_datos(url, datos_tecnicos, datos_audio, palabras_clave, sentimiento, stats_sociales)
     
     if guardado_exitoso:
@@ -55,6 +54,9 @@ def main():
     if not os.path.exists(config.FFMPEG_PATH):
         print(f"⛔ ERROR: No encuentro ffmpeg.exe en: {config.FFMPEG_PATH}")
         return
+
+    # --- EL FIX DE HOY: ACTUALIZAR LA BASE DE DATOS ANTES DE EMPEZAR ---
+    datamanager.crear_tablas()
 
     print("--- TIKTOK REVERSE ENGINEER v2.0 ---")
     print("1. Modo Manual (Pegar Link)")
