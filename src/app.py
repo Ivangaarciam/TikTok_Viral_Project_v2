@@ -5,6 +5,8 @@ import pandas as pd
 import os
 import joblib
 import plotly.express as px
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import config
 
 # --- NUESTRO ESCUADRÓN BACKEND ---
@@ -15,10 +17,11 @@ import nlp
 import datamanager
 import scoring
 import predictor
+import consultor  # <--- NUEVO INTEGRANTE (DÍA 34)
 
-st.set_page_config(page_title="TikTok Viral Analyzer", page_icon="📱", layout="wide")
-st.title("📱 Analizador de Viralidad TikTok")
-st.markdown("Bienvenido al centro de mando. Aquí evaluamos el ADN técnico de los videos cortos.")
+st.set_page_config(page_title="TikTok Viral Analyzer SaaS", page_icon="📱", layout="wide")
+st.title("📱 Analizador de Viralidad TikTok (v3.0 SaaS)")
+st.markdown("Bienvenido al centro de mando. Aquí evaluamos el ADN técnico de los videos cortos y extraemos patrones de éxito.")
 
 # --- SIDEBAR: SIMULADOR CON IA ---
 st.sidebar.header("🔮 Simulador de Viralidad")
@@ -35,74 +38,40 @@ ruta_modelo = os.path.join(config.DATA_DIR, "oraculo.pkl")
 if st.sidebar.button("Predecir Éxito", use_container_width=True):
     if os.path.exists(ruta_modelo):
         modelo = joblib.load(ruta_modelo)
-        datos_sim = pd.DataFrame([{'wpm': sim_wpm, 'cortes_min': sim_cpm, 'pct_caras': sim_caras, 'brillo': sim_brillo, 'rms_audio': sim_rms}])
-        prob_viral = modelo.predict_proba(datos_sim)[0][1] * 100
-        
-        st.sidebar.divider()
-        if prob_viral > 70:
-            st.sidebar.success(f"🚀 Probabilidad: {prob_viral:.1f}%\n\n¡Potencial Viral Altísimo!")
-        elif prob_viral > 40:
-            st.sidebar.warning(f"📈 Probabilidad: {prob_viral:.1f}%\n\nBuen video, depende del nicho.")
+        if len(modelo.classes_) < 2:
+            st.sidebar.warning("⚠️ Necesito entrenar con más videos variados (éxitos y fracasos) para poder predecir.")
         else:
-            st.sidebar.error(f"🧊 Probabilidad: {prob_viral:.1f}%\n\nEl algoritmo no lo empujará.")
+            datos_sim = pd.DataFrame([{'wpm': sim_wpm, 'cortes_min': sim_cpm, 'pct_caras': sim_caras, 'brillo': sim_brillo, 'rms_audio': sim_rms}])
+            prob_viral = modelo.predict_proba(datos_sim)[0][1] * 100
+            
+            st.sidebar.divider()
+            if prob_viral > 70:
+                st.sidebar.success(f"🚀 Probabilidad: {prob_viral:.1f}%\n\n¡Potencial Viral Altísimo!")
+            elif prob_viral > 40:
+                st.sidebar.warning(f"📈 Probabilidad: {prob_viral:.1f}%\n\nBuen video, depende del nicho.")
+            else:
+                st.sidebar.error(f"🧊 Probabilidad: {prob_viral:.1f}%\n\nEl algoritmo no lo empujará.")
     else:
-        st.sidebar.error("⚠️ Falta el cerebro. Entrena la IA con model.py primero.")
+        st.sidebar.error("⚠️ Falta el cerebro. Entrena la IA primero.")
 
 st.divider()
 
-# --- SECCIÓN: ANALIZADOR EN VIVO ---
-st.subheader("⚡ Analizador en Vivo")
-col_input, col_btn = st.columns([4, 1])
-with col_input:
-    url_input = st.text_input("URL del video de TikTok:", label_visibility="collapsed", placeholder="https://www.tiktok.com/@usuario/video/123456789")
-with col_btn:
-    btn_analizar = st.button("Analizar Video", type="primary", use_container_width=True)
+# --- SECCIÓN: ANALIZADOR EN VIVO (Mantenido por compatibilidad v2) ---
+with st.expander("⚡ Analizador Manual en Vivo (Pegar URL individual)"):
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        url_input = st.text_input("URL del video de TikTok:", label_visibility="collapsed", placeholder="https://www.tiktok.com/@usuario/video/123456789")
+    with col_btn:
+        btn_analizar = st.button("Analizar Video", type="primary", use_container_width=True)
 
-if btn_analizar and url_input:
-    with st.status("Iniciando cadena de montaje...", expanded=True) as status:
-        st.write("⬇️ Descargando video y metadatos...")
-        stats = downloader.descargar_video(url_input)
-        if stats:
-            st.write("⚙️ Separando audio y video...")
-            if processor.convertir_medios():
-                st.write("👂 Transcribiendo con Whisper AI...")
-                datos_audio = processor.transcribir_audio()
-                if datos_audio:
-                    st.write("🧠 Extrayendo semántica y emociones...")
-                    palabras_clave = nlp.extraer_palabras_clave(datos_audio['texto'])
-                    sentimiento = nlp.analizar_sentimiento(datos_audio['texto'])
-                    
-                    st.write("👁️ Analizando visión por computadora...")
-                    datos_tecnicos = analyzer.calcular_metricas(config.NOMBRE_VIDEO_FINAL, config.NOMBRE_AUDIO_FINAL)
-                    
-                    if datos_tecnicos:
-                        st.write("💾 Guardando en el Cerebro (SQLite)...")
-                        datamanager.guardar_datos(url_input, datos_tecnicos, datos_audio, palabras_clave, sentimiento, stats)
-                        status.update(label="¡Análisis completado!", state="complete", expanded=False)
-                        st.success("✅ Video procesado y añadido con éxito.")
-                        
-                        st.markdown("### 🎬 Resultado del Análisis")
-                        col_vid, col_txt = st.columns([1, 2])
-                        with col_vid:
-                            if os.path.exists(config.NOMBRE_VIDEO_FINAL):
-                                st.video(config.NOMBRE_VIDEO_FINAL)
-                        with col_txt:
-                            st.info(f"**🪝 Gancho detectado:** {datos_audio['gancho']}")
-                            st.success(f"**🏷️ Palabras clave:** {palabras_clave}")
-                            st.warning(f"**🎭 Tono del video:** {sentimiento}")
-                            with st.expander("Ver transcripción completa de Whisper"):
-                                st.write(datos_audio['texto'])
-                                
-                    else: status.update(label="Fallo en el análisis visual.", state="error")
-                else: status.update(label="Fallo en la transcripción.", state="error")
-            else: status.update(label="Fallo al procesar medios.", state="error")
-        else: status.update(label="Fallo al descargar. Verifica la URL o las cookies.", state="error")
+    if btn_analizar and url_input:
+        st.warning("Para minería masiva y categorización por nicho, utiliza el archivo main.py en tu terminal.")
 
 st.divider()
 
-# --- SECCIÓN PRINCIPAL: TABS DE DATOS Y GRÁFICOS ---
+# --- SECCIÓN PRINCIPAL: TABS DE DATOS, GRÁFICOS Y CONSULTOR IA ---
 if not os.path.exists(config.ARCHIVO_DB):
-    st.info("La base de datos se creará en cuanto analices tu primer video.")
+    st.info("La base de datos se creará en cuanto analices tu primer video desde main.py")
 else:
     try:
         conn = sqlite3.connect(config.ARCHIVO_DB)
@@ -111,10 +80,6 @@ else:
 
         if not df.empty:
             st.subheader("📊 Resumen del Cerebro")
-            
-            # --- NUEVO: CHIVATO DE ACTUALIZACIÓN CON ZONA HORARIA ---
-            from datetime import datetime
-            from zoneinfo import ZoneInfo
             
             timestamp = os.path.getmtime(config.ARCHIVO_DB)
             fecha_mod = datetime.fromtimestamp(timestamp, tz=ZoneInfo("Europe/Madrid"))
@@ -130,20 +95,12 @@ else:
                 df['interacciones'] = df['likes'] + df['guardados'] + df['comentarios'] + df['shares']
             df['engagement_rate'] = (df['interacciones'] / df['vistas'] * 100).fillna(0)
 
-            csv = df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 Exportar Base de Datos a CSV",
-                data=csv,
-                file_name='cerebro_tiktok_export.csv',
-                mime='text/csv',
-            )
-
-            st.write("") 
-            
-            tab_datos, tab_graficos = st.tabs(["🗂️ Base de Datos", "📈 Análisis Visual"])
+            # --- TRES PESTAÑAS AHORA ---
+            tab_datos, tab_graficos, tab_ia = st.tabs(["🗂️ Base de Datos", "📈 Análisis Visual", "🤖 Consultor AI"])
 
             with tab_datos:
-                columnas_mostrar = ['autor', 'vistas', 'likes', 'wpm', 'cortes_min', 'pct_caras', 'sentimiento', 'gancho']
+                # Mostramos también las nuevas columnas de nicho si existen
+                columnas_mostrar = ['autor', 'nicho', 'vistas', 'likes', 'wpm', 'cortes_min', 'pct_caras', 'sentimiento', 'gancho']
                 columnas_reales = [c for c in columnas_mostrar if c in df.columns]
                 
                 df_mostrar = df[columnas_reales].copy()
@@ -153,15 +110,40 @@ else:
             with tab_graficos:
                 col_graf1, col_graf2 = st.columns(2)
                 with col_graf1:
-                    fig1 = px.scatter(df, x="wpm", y="engagement_rate", size="vistas", color="pct_caras",
+                    fig1 = px.scatter(df, x="wpm", y="engagement_rate", size="vistas", color="nicho" if 'nicho' in df.columns else "pct_caras",
                                       hover_name="autor", hover_data=["cortes_min", "gancho"],
-                                      title="¿Hablar más rápido genera más engagement?")
+                                      title="Ritmo vs Engagement (Por Nicho)")
                     st.plotly_chart(fig1, use_container_width=True)
                 with col_graf2:
-                    fig2 = px.scatter(df, x="cortes_min", y="vistas", color="autor",
+                    fig2 = px.scatter(df, x="cortes_min", y="vistas", color="nicho" if 'nicho' in df.columns else "autor",
                                       hover_name="autor", hover_data=["wpm", "gancho"],
                                       title="Dinamismo de Edición vs Vistas", log_y=True)
                     st.plotly_chart(fig2, use_container_width=True)
+
+            # --- LA NUEVA MAGIA: EL CONSULTOR ---
+            with tab_ia:
+                st.header("🧠 Asesor Estratégico de Contenido")
+                st.write("Selecciona un nicho de tu base de datos. La IA buscará los patrones de los videos más exitosos y te dará los secretos de la competencia.")
+                
+                if 'nicho' in df.columns:
+                    # Obtenemos los nichos únicos que no sean nulos
+                    nichos_disponibles = df[df['nicho'] != 'Desconocido']['nicho'].dropna().unique().tolist()
+                    
+                    if nichos_disponibles:
+                        nicho_elegido = st.selectbox("🎯 Elige el Nicho a auditar:", nichos_disponibles)
+                        
+                        if st.button("Generar Informe Top 5", type="primary"):
+                            with st.spinner(f"Analizando métricas del nicho '{nicho_elegido}'..."):
+                                informe = consultor.obtener_mejores_consejos(nicho_elegido)
+                                
+                                # Usamos el formato chat nativo de Streamlit para darle el toque SaaS
+                                with st.chat_message("assistant"):
+                                    st.markdown("¡Hola! He revisado tu base de datos. Aquí tienes los patrones que están funcionando ahora mismo en este sector:")
+                                    st.markdown(informe)
+                    else:
+                        st.info("Aún no tienes videos con un nicho clasificado. Usa el Modo 3 en tu terminal para minar datos.")
+                else:
+                    st.warning("Tu base de datos necesita procesar un nuevo video para actualizarse a la versión 3.0.")
 
     except Exception as e:
         st.error(f"Error al leer los datos: {e}")

@@ -58,3 +58,41 @@ def descargar_video(url):
     except Exception as e:
         print(f"❌ Error descarga: {e}")
         return None
+
+def buscar_videos_perfil(usuario, limite=5):
+    """
+    Extrae los últimos videos de un creador específico.
+    Es la forma más estable de minar datos masivos con yt-dlp.
+    """
+    # Limpiamos el @ por si el usuario lo pone por costumbre
+    usuario = usuario.replace("@", "")
+    print(f"🔎 Infiltrándose en el perfil de @{usuario} (últimos {limite} videos)...")
+    
+    url_perfil = f"https://www.tiktok.com/@{usuario}"
+    
+    opciones_perfil = {
+        'quiet': True,
+        'extract_flat': True, # Solo extrae las URLs
+        'playlist_items': f'1-{limite}', # Tope de videos a sacar
+        'cookiefile': config.COOKIES_PATH, # Las cookies son clave aquí
+    }
+    
+    with yt_dlp.YoutubeDL(opciones_perfil) as ydl:
+        try:
+            resultado = ydl.extract_info(url_perfil, download=False)
+            urls = []
+            
+            if 'entries' in resultado:
+                for entry in resultado['entries']:
+                    if entry and 'url' in entry:
+                        urls.append(entry['url'])
+                
+                print(f"✅ ¡Éxito! Se han extraído {len(urls)} enlaces del perfil.")
+                return urls
+            else:
+                print("⚠️ No se encontraron videos. Revisa que el perfil sea público y exista.")
+                return []
+                
+        except Exception as e:
+            print(f"❌ Error extrayendo el perfil: {e}")
+            return []

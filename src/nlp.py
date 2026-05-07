@@ -55,3 +55,34 @@ def analizar_sentimiento(texto):
         return "Polémico/Negativo 🔴"
     else:
         return "Neutral ⚪"
+
+# Definición de reglas para el clasificador (puedes añadir más nichos aquí)
+DICCIONARIO_NICHOS = {
+    "Tecnología & IA": {
+        "Content Creation": ["ia", "inteligencia artificial", "herramienta", "software", "automatizar", "viralizar", "algoritmo"]
+    },
+    "Moda": {
+        "Streetwear": ["zapatillas", "sneakers", "outfit", "ropa", "streetwear", "hype", "jordan", "nike", "estilo"]
+    }
+}
+
+def clasificar_nicho(texto, url=""):
+    """
+    Analiza el texto de la transcripción para asignar categoría y nicho.
+    """
+    texto_low = texto.lower()
+    
+    for cat, nichos in DICCIONARIO_NICHOS.items():
+        for nicho, keywords in nichos.items():
+            if any(key in texto_low for key in keywords):
+                return {
+                    "cat_general": cat,
+                    "nicho": nicho,
+                    "micro_nicho": "General" # Esto lo afinaremos en el futuro
+                }
+    
+    return {
+        "cat_general": "Otros",
+        "nicho": "Desconocido",
+        "micro_nicho": "Sin clasificar"
+    }
