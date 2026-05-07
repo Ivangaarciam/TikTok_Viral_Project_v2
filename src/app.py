@@ -140,6 +140,14 @@ else:
                                 with st.chat_message("assistant"):
                                     st.markdown("¡Hola! He revisado tu base de datos. Aquí tienes los patrones que están funcionando ahora mismo en este sector:")
                                     st.markdown(informe)
+                        st.divider()
+                        st.subheader("✍️ Generador de Guiones Virales")
+                        st.write("Crea la instrucción perfecta (Prompt) basada en tus datos para pegarla en ChatGPT.")
+                        
+                        if st.button("🤖 Generar Prompt Optimizado"):
+                            prompt_magico = consultor.generar_prompt_creador(nicho_elegido)
+                            st.success("Copia el texto de abajo y pégalo en ChatGPT:")
+                            st.code(prompt_magico, language="markdown")            
                     else:
                         st.info("Aún no tienes videos con un nicho clasificado. Usa el Modo 3 en tu terminal para minar datos.")
                 else:

@@ -44,3 +44,41 @@ def analizar_base_datos():
 
 if __name__ == "__main__":
     analizar_base_datos()
+
+def generar_prompt_creador(nicho):
+    """
+    Crea una instrucción hiper-optimizada para que el usuario la copie
+    y se la pegue a ChatGPT (o Claude) para generar un guion viral.
+    """
+    conn = sqlite3.connect(config.ARCHIVO_DB)
+    
+    # Buscamos los patrones del MEJOR video del nicho
+    query = f"""
+    SELECT wpm, cortes_min, palabras_clave, sentimiento
+    FROM videos 
+    WHERE nicho = '{nicho}' 
+    ORDER BY (likes * 1.0 / vistas) DESC 
+    LIMIT 1
+    """
+    
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    if df.empty:
+        return "No hay suficientes datos del nicho para generar un guion."
+
+    mejor = df.iloc[0]
+    
+    prompt = f"""
+Actúa como un experto creador de contenido de TikTok especializado en el nicho de {nicho}.
+Basado en el análisis de datos de los videos más virales de la competencia, necesito que me escribas un guion para un video corto (menos de 60 segundos) que cumpla ESTRICTAMENTE con estas métricas técnicas:
+
+1. RITMO DE HABLA: El guion debe estar pensado para leerse a {mejor['wpm']} palabras por minuto (muy importante para la retención).
+2. DINAMISMO VISUAL: El video tendrá {mejor['cortes_min']} cortes de cámara por minuto. Escribe indicaciones visuales [en corchetes] a lo largo del guion para indicar cada cambio de plano o aparición de texto en pantalla.
+3. TONO EMOCIONAL: El tono general del video debe ser '{mejor['sentimiento']}'.
+4. PALABRAS CLAVE OBLIGATORIAS: Debes incluir estas palabras en los primeros 10 segundos para activar el SEO de TikTok: {mejor['palabras_clave']}.
+
+El guion debe empezar con un gancho disruptivo. Dame solo el guion final, sin texto de introducción.
+    """
+    
+    return prompt.strip()
