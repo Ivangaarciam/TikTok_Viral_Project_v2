@@ -78,80 +78,103 @@ else:
         df = pd.read_sql_query("SELECT * FROM videos", conn)
         conn.close()
 
+        df = pd.read_sql_query("SELECT * FROM videos", conn)
+        conn.close()
+
         if not df.empty:
-            st.subheader("📊 Resumen del Cerebro")
+            st.subheader("📊 Panel de Control SaaS")
             
-            timestamp = os.path.getmtime(config.ARCHIVO_DB)
-            fecha_mod = datetime.fromtimestamp(timestamp, tz=ZoneInfo("Europe/Madrid"))
-            st.caption(f"Última sincronización de datos: {fecha_mod.strftime('%d/%m/%Y %H:%M')}")
+            # --- NUEVO: EL MURO DE PAGO (SaaS) ---
+            # Convertimos la fecha de texto a formato fecha real para poder filtrar
+            df['fecha_proceso'] = pd.to_datetime(df['fecha_proceso'])
+            ahora = pd.Timestamp.now()
 
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Videos Analizados", len(df))
-            col2.metric("Ritmo Promedio", f"{df['wpm'].mean():.0f} WPM")
-            col3.metric("Edición", f"{df['cortes_min'].mean():.1f} Cortes/min")
-            col4.metric("Presencia", f"{df['pct_caras'].mean():.1f}%")
-
-            if 'interacciones' not in df.columns:
-                df['interacciones'] = df['likes'] + df['guardados'] + df['comentarios'] + df['shares']
-            df['engagement_rate'] = (df['interacciones'] / df['vistas'] * 100).fillna(0)
-
-            # --- TRES PESTAÑAS AHORA ---
-            tab_datos, tab_graficos, tab_ia = st.tabs(["🗂️ Base de Datos", "📈 Análisis Visual", "🤖 Consultor AI"])
-
-            with tab_datos:
-                # Mostramos también las nuevas columnas de nicho si existen
-                columnas_mostrar = ['autor', 'nicho', 'vistas', 'likes', 'wpm', 'cortes_min', 'pct_caras', 'sentimiento', 'gancho']
-                columnas_reales = [c for c in columnas_mostrar if c in df.columns]
-                
-                df_mostrar = df[columnas_reales].copy()
-                df_mostrar = df_mostrar.sort_values(by='vistas', ascending=False)
-                st.dataframe(df_mostrar, use_container_width=True)
-
-            with tab_graficos:
-                col_graf1, col_graf2 = st.columns(2)
-                with col_graf1:
-                    fig1 = px.scatter(df, x="wpm", y="engagement_rate", size="vistas", color="nicho" if 'nicho' in df.columns else "pct_caras",
-                                      hover_name="autor", hover_data=["cortes_min", "gancho"],
-                                      title="Ritmo vs Engagement (Por Nicho)")
-                    st.plotly_chart(fig1, use_container_width=True)
-                with col_graf2:
-                    fig2 = px.scatter(df, x="cortes_min", y="vistas", color="nicho" if 'nicho' in df.columns else "autor",
-                                      hover_name="autor", hover_data=["wpm", "gancho"],
-                                      title="Dinamismo de Edición vs Vistas", log_y=True)
-                    st.plotly_chart(fig2, use_container_width=True)
-
-            # --- LA NUEVA MAGIA: EL CONSULTOR ---
-            with tab_ia:
-                st.header("🧠 Asesor Estratégico de Contenido")
-                st.write("Selecciona un nicho de tu base de datos. La IA buscará los patrones de los videos más exitosos y te dará los secretos de la competencia.")
-                
-                if 'nicho' in df.columns:
-                    # Obtenemos los nichos únicos que no sean nulos
-                    nichos_disponibles = df[df['nicho'] != 'Desconocido']['nicho'].dropna().unique().tolist()
-                    
-                    if nichos_disponibles:
-                        nicho_elegido = st.selectbox("🎯 Elige el Nicho a auditar:", nichos_disponibles)
-                        
-                        if st.button("Generar Informe Top 5", type="primary"):
-                            with st.spinner(f"Analizando métricas del nicho '{nicho_elegido}'..."):
-                                informe = consultor.obtener_mejores_consejos(nicho_elegido)
-                                
-                                # Usamos el formato chat nativo de Streamlit para darle el toque SaaS
-                                with st.chat_message("assistant"):
-                                    st.markdown("¡Hola! He revisado tu base de datos. Aquí tienes los patrones que están funcionando ahora mismo en este sector:")
-                                    st.markdown(informe)
-                        st.divider()
-                        st.subheader("✍️ Generador de Guiones Virales")
-                        st.write("Crea la instrucción perfecta (Prompt) basada en tus datos para pegarla en ChatGPT.")
-                        
-                        if st.button("🤖 Generar Prompt Optimizado"):
-                            prompt_magico = consultor.generar_prompt_creador(nicho_elegido)
-                            st.success("Copia el texto de abajo y pégalo en ChatGPT:")
-                            st.code(prompt_magico, language="markdown")            
-                    else:
-                        st.info("Aún no tienes videos con un nicho clasificado. Usa el Modo 3 en tu terminal para minar datos.")
+            col_plan1, col_plan2 = st.columns([1, 2])
+            with col_plan1:
+                st.markdown("### 💳 Tu Suscripción")
+                plan = st.radio(
+                    "Selecciona nivel de acceso:",
+                    ["🟢 Plan Básico (Histórico)", "👑 Plan PRO (Últimas 24h)"],
+                    label_visibility="collapsed"
+                )
+            
+            with col_plan2:
+                if "👑 Plan PRO" in plan:
+                    st.success("✅ Acceso PRO activado. Viendo tendencias de las últimas 24 horas.")
+                    # Filtramos los datos para mostrar SOLO los de las últimas 24h
+                    limite_24h = ahora - pd.Timedelta(hours=24)
+                    df = df[df['fecha_proceso'] >= limite_24h]
                 else:
-                    st.warning("Tu base de datos necesita procesar un nuevo video para actualizarse a la versión 3.0.")
+                    st.info("ℹ️ Plan Básico. Viendo patrones históricos (sin datos de las últimas 24h).")
+                    # Filtramos para mostrar SOLO lo que es más antiguo de 24h
+                    limite_24h = ahora - pd.Timedelta(hours=24)
+                    df = df[df['fecha_proceso'] < limite_24h]
+
+            st.divider()
+
+            if df.empty:
+                st.warning("No hay videos en este rango de tiempo. (Si elegiste Básico y acabas de crear la base de datos hoy, todos tus videos son 'PRO' porque tienen menos de 24h de antigüedad).")
+            else:
+                # --- MÉTRICAS GENERALES ---
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Videos Analizados", len(df))
+                col2.metric("Ritmo Promedio", f"{df['wpm'].mean():.0f} WPM")
+                col3.metric("Edición", f"{df['cortes_min'].mean():.1f} Cortes/min")
+                col4.metric("Presencia", f"{df['pct_caras'].mean():.1f}%")
+
+                if 'interacciones' not in df.columns:
+                    df['interacciones'] = df['likes'] + df['guardados'] + df['comentarios'] + df['shares']
+                df['engagement_rate'] = (df['interacciones'] / df['vistas'] * 100).fillna(0)
+
+                tab_datos, tab_graficos, tab_ia = st.tabs(["🗂️ Base de Datos", "📈 Análisis Visual", "🤖 Consultor AI"])
+
+                with tab_datos:
+                    columnas_mostrar = ['autor', 'nicho', 'fecha_proceso', 'vistas', 'likes', 'wpm', 'cortes_min', 'pct_caras', 'sentimiento', 'gancho']
+                    columnas_reales = [c for c in columnas_mostrar if c in df.columns]
+                    
+                    df_mostrar = df[columnas_reales].copy()
+                    df_mostrar = df_mostrar.sort_values(by='vistas', ascending=False)
+                    st.dataframe(df_mostrar, use_container_width=True)
+
+                with tab_graficos:
+                    col_graf1, col_graf2 = st.columns(2)
+                    with col_graf1:
+                        fig1 = px.scatter(df, x="wpm", y="engagement_rate", size="vistas", color="nicho" if 'nicho' in df.columns else "pct_caras",
+                                          hover_name="autor", hover_data=["cortes_min", "gancho"],
+                                          title="Ritmo vs Engagement (Por Nicho)")
+                        st.plotly_chart(fig1, use_container_width=True)
+                    with col_graf2:
+                        fig2 = px.scatter(df, x="cortes_min", y="vistas", color="nicho" if 'nicho' in df.columns else "autor",
+                                          hover_name="autor", hover_data=["wpm", "gancho"],
+                                          title="Dinamismo de Edición vs Vistas", log_y=True)
+                        st.plotly_chart(fig2, use_container_width=True)
+
+                with tab_ia:
+                    st.header("🧠 Asesor Estratégico de Contenido")
+                    st.write("Selecciona un nicho. La IA buscará patrones de éxito basados en tu nivel de suscripción.")
+                    
+                    if 'nicho' in df.columns:
+                        nichos_disponibles = df[df['nicho'] != 'Desconocido']['nicho'].dropna().unique().tolist()
+                        
+                        if nichos_disponibles:
+                            nicho_elegido = st.selectbox("🎯 Elige el Nicho a auditar:", nichos_disponibles)
+                            
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                if st.button("Generar Informe Top 5", type="primary", use_container_width=True):
+                                    with st.spinner(f"Analizando métricas del nicho '{nicho_elegido}'..."):
+                                        informe = consultor.obtener_mejores_consejos(nicho_elegido)
+                                        with st.chat_message("assistant"):
+                                            st.markdown(informe)
+                                        
+                            with col_btn2:
+                                if st.button("🤖 Generar Prompt Optimizado", use_container_width=True):
+                                    prompt_magico = consultor.generar_prompt_creador(nicho_elegido)
+                                    st.success("Copia el texto de abajo y pégalo en ChatGPT:")
+                                    st.code(prompt_magico, language="markdown")
+                                        
+                        else:
+                            st.info("Aún no tienes videos con un nicho clasificado.")
 
     except Exception as e:
         st.error(f"Error al leer los datos: {e}")
