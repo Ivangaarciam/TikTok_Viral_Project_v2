@@ -82,3 +82,32 @@ El guion debe empezar con un gancho disruptivo. Dame solo el guion final, sin te
     """
     
     return prompt.strip()
+
+def obtener_metricas_exito(nicho):
+    """
+    Calcula el promedio de las métricas técnicas de los videos 
+    con más engagement de un nicho concreto.
+    """
+    conn = sqlite3.connect(config.ARCHIVO_DB)
+    # Seleccionamos el top 20% de videos del nicho por engagement
+    query = f"""
+    SELECT wpm, cortes_min, pct_caras, brillo, rms_audio
+    FROM videos 
+    WHERE nicho = '{nicho}' 
+    ORDER BY (likes * 1.0 / vistas) DESC 
+    LIMIT 10
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    if df.empty:
+        return None
+        
+    # Devolvemos un diccionario con los promedios "perfectos"
+    return {
+        "wpm_ideal": df['wpm'].mean(),
+        "cpm_ideal": df['cortes_min'].mean(),
+        "caras_ideal": df['pct_caras'].mean(),
+        "brillo_ideal": df['brillo'].mean(),
+        "rms_ideal": df['rms_audio'].mean()
+    }

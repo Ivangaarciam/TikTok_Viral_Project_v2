@@ -55,14 +55,44 @@ else:
 
     st.markdown("Bienvenido al centro de mando. Aquí evaluamos el ADN técnico de los videos cortos y extraemos patrones de éxito.")
 
-    # --- SIDEBAR: SIMULADOR CON IA ---
+    # --- SIDEBAR: SIMULADOR CON INTELIGENCIA DE NICHO ---
     st.sidebar.header("🔮 Simulador de Viralidad")
+
+    # Nuevo: Selección de nicho para comparar
+    conn = sqlite3.connect(config.ARCHIVO_DB)
+    df_nichos = pd.read_sql_query("SELECT DISTINCT nicho FROM videos WHERE nicho != 'Desconocido'", conn)
+    conn.close()
+    nicho_sim = st.sidebar.selectbox("🎯 Nicho de referencia:", df_nichos['nicho'].tolist() if not df_nichos.empty else ["General"])
+
     sim_wpm = st.sidebar.slider("🗣️ Ritmo (WPM)", 50, 250, 150)
     sim_cpm = st.sidebar.slider("🎬 Cortes por Minuto", 0, 40, 12)
     sim_caras = st.sidebar.slider("👤 % Presencia Humana", 0, 100, 50)
     sim_brillo = st.sidebar.slider("☀️ Brillo Promedio", 0, 255, 120)
     sim_rms = st.sidebar.slider("🔊 Volumen (RMS)", 0.0, 1.0, 0.1, step=0.05)
 
+    # --- NUEVA LÓGICA DE COMPARACIÓN (DÍA 38) ---
+    if st.session_state['tipo_plan'] == "PRO":
+        metricas_top = consultor.obtener_metricas_exito(nicho_sim)
+        if metricas_top:
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("⚖️ Comparativa PRO")
+            
+            # Comparación de Ritmo
+            dif_wpm = sim_wpm - metricas_top['wpm_ideal']
+            st.sidebar.metric("Diferencia de Ritmo", f"{sim_wpm} WPM", f"{dif_wpm:.1f} vs Ideal", delta_color="normal")
+            
+            # Comparación de Edición
+            dif_cpm = sim_cpm - metricas_top['cpm_ideal']
+            st.sidebar.metric("Diferencia de Edición", f"{sim_cpm} CPM", f"{dif_cpm:.1f} vs Ideal", delta_color="normal")
+            
+            if abs(dif_wpm) > 30 or abs(dif_cpm) > 5:
+                st.sidebar.warning("⚠️ Tus ajustes se alejan del patrón viral de este nicho.")
+            else:
+                st.sidebar.success("✅ Estás en la 'Zona Viral' de este nicho.")
+
+    st.sidebar.markdown("---")
+
+    # --- BOTÓN DE PREDICCIÓN (MANTENIDO) ---
     ruta_modelo = os.path.join(config.DATA_DIR, "oraculo.pkl")
 
     if st.sidebar.button("Predecir Éxito", use_container_width=True):
