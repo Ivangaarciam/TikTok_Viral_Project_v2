@@ -20,27 +20,39 @@ import consultor
 
 st.set_page_config(page_title="TikTok Viral Analyzer SaaS", page_icon="📱", layout="wide")
 
-# --- DÍA 37: SISTEMA DE LOGIN Y SESIÓN ---
+# --- SISTEMA DE SESIÓN ---
 if 'usuario_logueado' not in st.session_state:
     st.session_state['usuario_logueado'] = False
     st.session_state['tipo_plan'] = "Básico"
 
+# --- DÍA 39: LA LANDING PAGE Y SELECCIÓN DE PLANES ---
 if not st.session_state['usuario_logueado']:
-    st.title("🔐 Acceso al SaaS")
-    st.info("Para acceder al Plan PRO, introduce tu clave secreta. Para probar la versión gratuita (Básica), simplemente dale a Entrar.")
+    st.title("🚀 Bienvenido a TikTok Viral Analyzer")
+    st.markdown("La herramienta definitiva para descifrar el algoritmo. Selecciona un plan para comenzar:")
     
-    with st.form("login"):
-        password = st.text_input("Contraseña de acceso:", type="password", placeholder="Escribe VIP2026 para Plan PRO")
-        btn_login = st.form_submit_button("Entrar al Dashboard")
-        
-        if btn_login:
+    st.write("") # Espaciador
+    
+    # Creamos dos columnas para las tarjetas de precios
+    col_basico, col_pro = st.columns(2)
+    
+    with col_basico:
+        st.info("### 🟢 Plan Básico\nIdeal para empezar y explorar patrones.\n\n* Acceso a datos históricos (> 24h)\n* Simulador de viralidad base\n* Gráficos de tendencias generales")
+        st.write("") 
+        if st.button("Entrar Gratis", use_container_width=True):
             st.session_state['usuario_logueado'] = True
-            # Lógica de asignación de planes
-            if password == "VIP2026":
-                st.session_state['tipo_plan'] = "PRO"
-            else:
-                st.session_state['tipo_plan'] = "Básico"
+            st.session_state['tipo_plan'] = "Básico"
             st.rerun()
+            
+    with col_pro:
+        st.success("### 👑 Plan PRO\nPara creadores serios y agencias.\n\n* Datos frescos en Tiempo Real (< 24h)\n* Benchmarking y métricas de competidores\n* Generador de guiones con IA")
+        password = st.text_input("Introduce tu clave VIP:", type="password", placeholder="Escribe VIP2026 para desbloquear")
+        if st.button("Desbloquear PRO", use_container_width=True, type="primary"):
+            if password == "VIP2026":
+                st.session_state['usuario_logueado'] = True
+                st.session_state['tipo_plan'] = "PRO"
+                st.rerun()
+            else:
+                st.error("Contraseña incorrecta. Vuelve a intentarlo.")
 
 else:
     # --- DASHBOARD PRINCIPAL ---
@@ -58,11 +70,14 @@ else:
     # --- SIDEBAR: SIMULADOR CON INTELIGENCIA DE NICHO ---
     st.sidebar.header("🔮 Simulador de Viralidad")
 
-    # Nuevo: Selección de nicho para comparar
-    conn = sqlite3.connect(config.ARCHIVO_DB)
-    df_nichos = pd.read_sql_query("SELECT DISTINCT nicho FROM videos WHERE nicho != 'Desconocido'", conn)
-    conn.close()
-    nicho_sim = st.sidebar.selectbox("🎯 Nicho de referencia:", df_nichos['nicho'].tolist() if not df_nichos.empty else ["General"])
+    # Selección de nicho para comparar
+    if os.path.exists(config.ARCHIVO_DB):
+        conn = sqlite3.connect(config.ARCHIVO_DB)
+        df_nichos = pd.read_sql_query("SELECT DISTINCT nicho FROM videos WHERE nicho != 'Desconocido'", conn)
+        conn.close()
+        nicho_sim = st.sidebar.selectbox("🎯 Nicho de referencia:", df_nichos['nicho'].tolist() if not df_nichos.empty else ["General"])
+    else:
+        nicho_sim = "General"
 
     sim_wpm = st.sidebar.slider("🗣️ Ritmo (WPM)", 50, 250, 150)
     sim_cpm = st.sidebar.slider("🎬 Cortes por Minuto", 0, 40, 12)
@@ -70,18 +85,15 @@ else:
     sim_brillo = st.sidebar.slider("☀️ Brillo Promedio", 0, 255, 120)
     sim_rms = st.sidebar.slider("🔊 Volumen (RMS)", 0.0, 1.0, 0.1, step=0.05)
 
-    # --- NUEVA LÓGICA DE COMPARACIÓN (DÍA 38) ---
-    if st.session_state['tipo_plan'] == "PRO":
+    if st.session_state['tipo_plan'] == "PRO" and os.path.exists(config.ARCHIVO_DB):
         metricas_top = consultor.obtener_metricas_exito(nicho_sim)
         if metricas_top:
             st.sidebar.markdown("---")
             st.sidebar.subheader("⚖️ Comparativa PRO")
             
-            # Comparación de Ritmo
             dif_wpm = sim_wpm - metricas_top['wpm_ideal']
             st.sidebar.metric("Diferencia de Ritmo", f"{sim_wpm} WPM", f"{dif_wpm:.1f} vs Ideal", delta_color="normal")
             
-            # Comparación de Edición
             dif_cpm = sim_cpm - metricas_top['cpm_ideal']
             st.sidebar.metric("Diferencia de Edición", f"{sim_cpm} CPM", f"{dif_cpm:.1f} vs Ideal", delta_color="normal")
             
@@ -92,7 +104,6 @@ else:
 
     st.sidebar.markdown("---")
 
-    # --- BOTÓN DE PREDICCIÓN (MANTENIDO) ---
     ruta_modelo = os.path.join(config.DATA_DIR, "oraculo.pkl")
 
     if st.sidebar.button("Predecir Éxito", use_container_width=True):
@@ -116,12 +127,11 @@ else:
 
     st.divider()
 
-    # --- SECCIÓN PRINCIPAL: LECTURA SEGURA DE LA BD (FIX) ---
+    # --- SECCIÓN PRINCIPAL: LECTURA SEGURA DE LA BD ---
     if not os.path.exists(config.ARCHIVO_DB):
-        st.info("La base de datos se creará en cuanto analices tu primer video desde tu terminal.")
+        st.info("La base de datos se creará en cuanto analices tu primer video desde tu terminal con main.py.")
     else:
         try:
-            # Fix del error: Abrir, leer todo de golpe, y cerrar sin bloqueos.
             conn = sqlite3.connect(config.ARCHIVO_DB)
             df = pd.read_sql_query("SELECT * FROM videos", conn)
             conn.close()
@@ -131,7 +141,6 @@ else:
                 df['fecha_proceso'] = pd.to_datetime(df['fecha_proceso'])
                 ahora = pd.Timestamp.now()
 
-                # Aplicamos el filtro según el plan del usuario logueado
                 if st.session_state['tipo_plan'] == "PRO":
                     st.success("✅ Acceso PRO activado. Viendo tendencias frescas de las últimas 24 horas.")
                     limite_24h = ahora - pd.Timedelta(hours=24)
@@ -144,7 +153,7 @@ else:
                 st.divider()
 
                 if df.empty:
-                    st.warning("No hay videos en este rango de tiempo para tu plan. (Nota: Si tu plan es Básico y analizaste todos tus datos HOY, la tabla estará vacía porque tienen menos de 24h de antigüedad).")
+                    st.warning("No hay videos en este rango de tiempo para tu plan.")
                 else:
                     col1, col2, col3, col4 = st.columns(4)
                     col1.metric("Videos Analizados", len(df))
