@@ -173,6 +173,17 @@ else:
                         df_mostrar = df[columnas_reales].copy()
                         df_mostrar = df_mostrar.sort_values(by='vistas', ascending=False)
                         st.dataframe(df_mostrar, use_container_width=True)
+                        # --- NUEVO: BOTÓN DE DESCARGA CSV (DÍA 42) ---
+                        st.write("") 
+                        csv_data = df_mostrar.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Exportar Datos a CSV",
+                            data=csv_data,
+                            file_name=f"reporte_tiktok_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            type="secondary",
+                            use_container_width=True
+                        )
 
                     with tab_graficos:
                         col_graf1, col_graf2 = st.columns(2)
@@ -209,6 +220,25 @@ else:
                                         prompt_magico = consultor.generar_prompt_creador(nicho_elegido)
                                         st.success("Copia el texto de abajo y pégalo en ChatGPT:")
                                         st.code(prompt_magico, language="markdown")
+                                
+                                # --- NUEVO: AUDITOR DE GUIONES (DÍA 41) ---
+                                st.divider()
+                                st.subheader("📝 Auditor de Guiones")
+                                st.write("Pega el borrador de tu próximo video y la IA lo comparará con el ADN de los videos más virales de este nicho.")
+                                
+                                if st.session_state['tipo_plan'] == "PRO":
+                                    borrador = st.text_area("Tu guion:", height=150, placeholder="Hola a todos, hoy vamos a hablar de...", label_visibility="collapsed")
+                                    if st.button("⚖️ Auditar Guion", type="primary"):
+                                        if borrador:
+                                            with st.spinner("Analizando el ADN de tu texto..."):
+                                                # Llamamos a la función que probaste en consola
+                                                auditoria = consultor.evaluar_borrador_guion(borrador, nicho_elegido)
+                                                st.info(auditoria)
+                                        else:
+                                            st.warning("Pega un guion primero para poder evaluarlo.")
+                                else:
+                                    st.error("🔒 Esta función es exclusiva del Plan PRO. Mejora tu suscripción para desbloquear el auditor en tiempo real.")
+
                             else:
                                 st.info("Aún no tienes videos con un nicho clasificado.")
 

@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import config
 import os
+import nlp  # <--- Necesitamos que el consultor sepa usar nuestro motor NLP
 
 def analizar_base_datos():
     print("\n📊 --- CONSULTOR DE DATOS TIKTOK --- 📊\n")
@@ -42,8 +43,7 @@ def analizar_base_datos():
     except Exception as e:
         print(f"❌ Error al leer la base de datos: {e}")
 
-if __name__ == "__main__":
-    analizar_base_datos()
+
 
 def generar_prompt_creador(nicho):
     """
@@ -111,3 +111,79 @@ def obtener_metricas_exito(nicho):
         "brillo_ideal": df['brillo'].mean(),
         "rms_ideal": df['rms_audio'].mean()
     }
+
+def evaluar_borrador_guion(texto_guion, nicho):
+    """
+    Lee un guion escrito por el usuario, extrae sus características (NLP)
+    y lo compara con los líderes de su nicho en la base de datos.
+    """
+    if len(texto_guion.split()) < 10:
+        return "⚠️ El guion es demasiado corto para ser evaluado. Necesito al menos 10 palabras."
+
+    # 1. La IA analiza el borrador del usuario
+    sentimiento_usuario = nlp.analizar_sentimiento(texto_guion)
+    keywords_usuario = set(nlp.extraer_palabras_clave(texto_guion).split(", "))
+    palabras_totales = len(texto_guion.split())
+
+    # 2. Buscamos el estándar de oro en la base de datos
+    conn = sqlite3.connect(config.ARCHIVO_DB)
+    query = f"""
+    SELECT wpm, sentimiento, palabras_clave
+    FROM videos 
+    WHERE nicho = '{nicho}' 
+    ORDER BY (likes * 1.0 / vistas) DESC 
+    LIMIT 5
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+
+    if df.empty:
+        return f"No tengo suficientes datos del nicho '{nicho}' para evaluar tu guion."
+
+    # 3. Extraemos los patrones ganadores
+    wpm_promedio = int(df['wpm'].mean())
+    sentimientos_top = df['sentimiento'].mode()[0] # El sentimiento que más se repite
+    
+    # Recopilamos todas las palabras clave ganadoras
+    keywords_top = set()
+    for kw_list in df['palabras_clave']:
+        for word in str(kw_list).split(", "):
+            if word: keywords_top.add(word)
+
+    # 4. Construimos el veredicto (El Reporte)
+    duracion_estimada = (palabras_totales / wpm_promedio) * 60
+
+    reporte = f"### ⚖️ Auditoría de tu Guion (Nicho: {nicho})\n\n"
+    reporte += f"⏱️ **Duración Estimada:** {duracion_estimada:.1f} segundos (a un ritmo viral de {wpm_promedio} WPM).\n\n"
+
+    # Evaluación de Tono
+    if sentimiento_usuario == sentimientos_top:
+        reporte += f"✅ **Tono Emocional:** Perfecto. Tu guion es '{sentimiento_usuario}', igual que los líderes de tu nicho.\n"
+    else:
+        reporte += f"⚠️ **Tono Emocional:** Tu guion es '{sentimiento_usuario}', pero en este nicho funciona mejor el tono '{sentimientos_top}'. Considera ajustar la energía de tus palabras.\n"
+
+    # Evaluación de SEO / Keywords
+    aciertos_seo = keywords_usuario.intersection(keywords_top)
+    if aciertos_seo:
+        reporte += f"✅ **SEO de TikTok:** Muy bien. Has incluido términos ganadores: {', '.join(aciertos_seo)}.\n"
+    else:
+        sugerencias = list(keywords_top)[:5]
+        reporte += f"❌ **SEO de TikTok:** No estás usando el vocabulario en tendencia. Intenta incluir términos como: {', '.join(sugerencias)}.\n"
+
+    # Veredicto final
+    if sentimiento_usuario == sentimientos_top and aciertos_seo:
+        reporte += "\n🚀 **VEREDICTO:** Guion altamente optimizado. ¡Pasa a producción!"
+    else:
+        reporte += "\n🔧 **VEREDICTO:** El guion necesita un par de ajustes antes de grabar para maximizar la retención."
+
+    return reporte
+
+
+if __name__ == "__main__":
+    # Script de prueba
+    mi_guion = "Bienvenidos a un nuevo video. Hoy os voy a enseñar cómo automatizar tareas usando inteligencia artificial de forma muy triste y aburrida."
+    nicho_prueba = "Content Creation" # Cambia esto a uno de los nichos que minaste ayer
+    
+    print("\nEvaluando borrador...")
+    resultado = evaluar_borrador_guion(mi_guion, nicho_prueba)
+    print("\n" + resultado)
